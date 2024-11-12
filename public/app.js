@@ -1,6 +1,6 @@
 // Виконується після завантаження DOM
 document.addEventListener('DOMContentLoaded', () => {
-  
+
   // Функція для перевірки наявності токену
   const checkAuthToken = () => {
     return localStorage.getItem('token');
@@ -84,6 +84,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const fileList = document.getElementById('files');
+    
+    // Функція для отримання файлів користувача
     const fetchFiles = async () => {
       try {
         const response = await fetch('/api/files', {
@@ -94,17 +96,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const data = await response.json();
-        if (data.files.length === 0) {
+        if (data.files && data.files.length === 0) {
           fileList.innerHTML = '<li>Немає доступних файлів для резервного копіювання</li>';
-        } else {
+        } else if (data.files) {
           data.files.forEach(file => {
             const li = document.createElement('li');
             const fileLink = document.createElement('a');
-            fileLink.href = `versions.html?fileId=${file.id}`; // Додавання посилання на версії файлу
-            fileLink.textContent = `${file.name} - ${file.date}`;
+            fileLink.href = `versions.html?fileId=${file._id}`; // Додавання посилання на версії файлу
+            fileLink.textContent = `${file.name} — Останнє оновлення: ${new Date(file.versions[0]?.date).toLocaleString()}`;
             li.appendChild(fileLink);
             fileList.appendChild(li);
           });
+        } else {
+          fileList.innerHTML = '<li>Сталася помилка при завантаженні файлів.</li>';
         }
       } catch (error) {
         console.error(error);
@@ -135,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const versionList = document.getElementById('versions');
     const fileId = new URLSearchParams(window.location.search).get('fileId'); // Отримуємо ID файлу з URL
 
+    // Функція для отримання версій файлу
     const fetchVersions = async () => {
       try {
         const response = await fetch(`/api/file/versions/${fileId}`, {
@@ -146,10 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (response.ok) {
           const data = await response.json();
-          if (data.versions.length > 0) {
+          if (data.versions && data.versions.length > 0) {
             data.versions.forEach(version => {
               const li = document.createElement('li');
-              li.textContent = `Версія від: ${version.date} — ${version.size} байт`;
+              li.textContent = `Версія від: ${new Date(version.date).toLocaleString()} — ${version.size} байт`;
               versionList.appendChild(li);
             });
           } else {

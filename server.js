@@ -5,18 +5,36 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 require('dotenv').config();
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Підключення до MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB підключено'))
   .catch(err => console.log(err));
 
-
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Налаштування для завантаження файлів
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const fileName = `${timestamp}-${file.originalname}`;
+    cb(null, fileName);
+  }
+});
+
+const upload = multer({ storage });
 
 // Моделі для користувача та файлів
 const UserSchema = new mongoose.Schema({
@@ -30,6 +48,7 @@ const FileSchema = new mongoose.Schema({
   versions: [{
     date: { type: Date, default: Date.now },
     fileUrl: { type: String, required: true },
+    iv: { type: String, required: true },  // IV для дешифрування
   }]
 });
 
@@ -102,25 +121,38 @@ const authenticate = (req, res, next) => {
 // Отримання файлів користувача
 app.get('/api/files', authenticate, async (req, res) => {
   try {
+    // Знайти всі файли для поточного користувача
     const files = await File.find({ user: req.userId }).populate('versions');
+    
+    if (!files || files.length === 0) {
+      return res.status(404).json({ success: false, message: 'Файли не знайдено для цього користувача' });
+    }
+
+    // Відправляємо список файлів
     res.status(200).json(files);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: 'Помилка при отриманні файлів' });
   }
 });
 
 // Завантаження файлів
-app.post('/api/upload', authenticate, async (req, res) => {
-  const { name, fileBuffer } = req.body; // Потрібно буде адаптувати для реальних файлів
+app.post('/api/upload', authenticate, upload.single('file'), async (req, res) => {
+  const { file } = req;
   const secretKey = process.env.FILE_ENCRYPTION_KEY;
 
+  if (!file) {
+    return res.status(400).json({ success: false, message: 'Файл не вибраний' });
+  }
+
   try {
-    // Шифруємо файл
+    // Читання файлу з диска
+    const fileBuffer = fs.readFileSync(file.path);
     const { iv, encrypted } = encryptFile(fileBuffer, secretKey);
 
     // Зберігаємо зашифрований файл у MongoDB
     const newFile = new File({
-      name,
+      name: file.originalname,
       user: req.userId,
       versions: [{
         fileUrl: encrypted.toString('base64'),
