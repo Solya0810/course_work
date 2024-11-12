@@ -139,9 +139,8 @@ app.get('/api/files', authenticate, async (req, res) => {
   }
 });
 
-// Завантаження нової версії файлу (створення резервної копії)
-app.post('/api/upload-version/:fileId', authenticate, upload.single('file'), async (req, res) => {
-  const { fileId } = req.params;
+app.post('/api/upload-version/:fileId?', authenticate, upload.single('file'), async (req, res) => {
+  const { fileId } = req.params;  // fileId може бути необов'язковим (для нових файлів)
   const { file } = req;
   const secretKey = process.env.FILE_ENCRYPTION_KEY;
 
@@ -150,33 +149,51 @@ app.post('/api/upload-version/:fileId', authenticate, upload.single('file'), asy
   }
 
   try {
-    // Знайдемо файл по ID
-    const fileRecord = await File.findById(fileId);
-    if (!fileRecord) {
-      return res.status(404).json({ success: false, message: 'Файл не знайдений' });
+    let fileRecord;
+
+    if (fileId) {
+      // Якщо передано fileId, шукаємо файл в базі даних для додавання нової версії
+      fileRecord = await File.findById(fileId);
+      if (!fileRecord) {
+        return res.status(404).json({ success: false, message: 'Файл не знайдено' });
+      }
+    } else {
+      // Якщо fileId не передано, створюємо новий файл (це буде перша версія файлу)
+      fileRecord = new File({
+        name: file.originalname,
+        user: req.userId,
+        versions: [],
+      });
     }
 
     // Читання файлу з диска
     const fileBuffer = fs.readFileSync(file.path);
     const { iv, encrypted } = encryptFile(fileBuffer, secretKey); // Шифруємо файл
 
-    // Додаємо нову версію файлу
+    // Створення шляху для збереження зашифрованої версії файлу
+    const filePath = path.join(__dirname, 'uploads', file.filename);
+    fs.writeFileSync(filePath, encrypted);
+
+    // Створення нової версії файлу
     const newVersion = {
-      fileUrl: encrypted.toString('base64'),
+      fileUrl: file.filename,  // Зберігаємо лише ім'я файлу, щоб створювати відносні посилання
       date: new Date(),
       iv: iv.toString('base64'),
     };
 
     // Додаємо нову версію до масиву версій
     fileRecord.versions.push(newVersion);
-    await fileRecord.save(); // Зберігаємо файл з новою версією
 
-    res.status(201).json({ success: true, message: 'Нова версія файлу успішно збережена' });
+    // Якщо це новий файл, зберігаємо його, а якщо існуючий, оновлюємо
+    await fileRecord.save();
+
+    res.status(201).json({ success: true, message: 'Версія файлу успішно збережена' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Помилка при завантаженні резервної копії файлу' });
   }
 });
+
 
 // Завантаження файлу для відновлення (дефшифрування)
 app.get('/api/download-version/:fileId/:versionId', authenticate, async (req, res) => {
