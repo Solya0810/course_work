@@ -1,41 +1,29 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Резервні Копії</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Ваш файл стилів -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Резервні копії</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Резервні Копії</h1>
-    <ul id="backups-list"></ul>
+  <div class="container">
+    <h1>Мої резервні копії</h1>
+    
+    <!-- Кнопка виходу -->
+    <button id="logoutBtn">Вийти</button>
 
-    <script>
-        // Отримати резервні копії з сервера
-        fetch('/api/backups')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Не вдалося отримати резервні копії');
-                }
-                return response.json();
-            })
-            .then(data => {
-                const backupsList = document.getElementById('backups-list');
-                data.forEach(backup => {
-                    const listItem = document.createElement('li');
-                    listItem.textContent = `${backup.name} (Дата: ${new Date(backup.date).toLocaleString()})`;
-                    // Додайте можливість перегляду версій
-                    const versionsLink = document.createElement('a');
-                    versionsLink.href = `versions.html?id=${backup.id}`;
-                    versionsLink.textContent = ' Переглянути версії';
-                    listItem.appendChild(versionsLink);
-                    backupsList.appendChild(listItem);
-                });
-            })
-            .catch(error => {
-                console.error(error);
-                alert('Не вдалося завантажити резервні копії');
-            });
-    </script>
+    <!-- Список файлів -->
+    <div id="fileList">
+      <h2>Завантажені файли:</h2>
+      <ul id="files">
+        <!-- Список файлів буде генеруватися через JavaScript -->
+      </ul>
+    </div>
+  </div>
+
+  <!-- Підключення скрипту для обробки даних -->
+  <script src="app.js"></script>
 </body>
 </html>
+

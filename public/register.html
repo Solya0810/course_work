@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Реєстрація</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Реєстрація</h1>
+
+    <div class="auth-form">
+      <h2>Створіть акаунт</h2>
+      <form id="registerForm" action="#" method="POST">
+        <!-- Логін -->
+        <div class="form-group">
+          <label for="username">Логін:</label>
+          <input type="text" id="username" name="username" required>
+        </div>
+
+        <!-- Пароль -->
+        <div class="form-group">
+          <label for="password">Пароль:</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+
+        <!-- Підтвердження паролю -->
+        <div class="form-group">
+          <label for="confirmPassword">Підтвердження паролю:</label>
+          <input type="password" id="confirmPassword" name="confirmPassword" required>
+        </div>
+
+        <!-- Кнопка відправки форми -->
+        <button type="submit">Зареєструватися</button>
+      </form>
+      
+      <p>Вже є акаунт? <a href="index.html">Увійти</a></p>
+    </div>
+  </div>
+
+  <!-- Підключення скрипту для обробки форми -->
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,20 +1,41 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <title>Веб-застосунок для резервного копіювання</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Резервне копіювання файлів</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Авторизація</h1>
-    <form id="loginForm">
-        <label for="username">Ім'я користувача:</label>
-        <input type="text" id="username" required>
-        <label for="password">Пароль:</label>
-        <input type="password" id="password" required>
+  <div class="container">
+    <h1>Вітаємо в системі резервного копіювання файлів</h1>
+    
+    <div class="auth-form">
+      <h2>Авторизація</h2>
+      <!-- Форма для входу -->
+      <form id="loginForm" action="#" method="POST">
+        <!-- Логін -->
+        <div class="form-group">
+          <label for="username">Логін:</label>
+          <input type="text" id="username" name="username" required>
+        </div>
+
+        <!-- Пароль -->
+        <div class="form-group">
+          <label for="password">Пароль:</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+
+        <!-- Кнопка входу -->
         <button type="submit">Увійти</button>
-    </form>
-    <script src="app.js"></script>
+      </form>
+
+      <!-- Лінк на реєстрацію -->
+      <p>Немає акаунту? <a href="register.html">Зареєструйтесь тут</a></p>
+    </div>
+  </div>
+
+  <!-- Підключення скрипту -->
+  <script src="app.js"></script>
 </body>
 </html>
