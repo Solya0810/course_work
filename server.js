@@ -13,7 +13,10 @@ const port = process.env.PORT || 3000;
 // Підключення до MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB підключено'))
-  .catch(err => console.log(err));
+  .catch(err => {
+    console.error('Помилка підключення до MongoDB:', err);
+    process.exit(1);
+  });
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -121,9 +124,9 @@ const authenticate = (req, res, next) => {
 // Отримання файлів користувача
 app.get('/api/files', authenticate, async (req, res) => {
   try {
-    // Знайти всі файли для поточного користувача
-    const files = await File.find({ user: req.userId }).populate('versions');
-    
+    // Знайдемо всі файли для поточного користувача
+    const files = await File.find({ user: req.userId });
+
     if (!files || files.length === 0) {
       return res.status(404).json({ success: false, message: 'Файли не знайдено для цього користувача' });
     }
@@ -136,8 +139,9 @@ app.get('/api/files', authenticate, async (req, res) => {
   }
 });
 
-// Завантаження файлів
-app.post('/api/upload', authenticate, upload.single('file'), async (req, res) => {
+// Завантаження нової версії файлу (створення резервної копії)
+app.post('/api/upload-version/:fileId', authenticate, upload.single('file'), async (req, res) => {
+  const { fileId } = req.params;
   const { file } = req;
   const secretKey = process.env.FILE_ENCRYPTION_KEY;
 
@@ -146,46 +150,57 @@ app.post('/api/upload', authenticate, upload.single('file'), async (req, res) =>
   }
 
   try {
+    // Знайдемо файл по ID
+    const fileRecord = await File.findById(fileId);
+    if (!fileRecord) {
+      return res.status(404).json({ success: false, message: 'Файл не знайдений' });
+    }
+
     // Читання файлу з диска
     const fileBuffer = fs.readFileSync(file.path);
-    const { iv, encrypted } = encryptFile(fileBuffer, secretKey);
+    const { iv, encrypted } = encryptFile(fileBuffer, secretKey); // Шифруємо файл
 
-    // Зберігаємо зашифрований файл у MongoDB
-    const newFile = new File({
-      name: file.originalname,
-      user: req.userId,
-      versions: [{
-        fileUrl: encrypted.toString('base64'),
-        date: new Date(),
-        iv: iv.toString('base64'),
-      }],
-    });
+    // Додаємо нову версію файлу
+    const newVersion = {
+      fileUrl: encrypted.toString('base64'),
+      date: new Date(),
+      iv: iv.toString('base64'),
+    };
 
-    await newFile.save();
-    res.status(201).json({ success: true, message: 'Файл успішно зашифровано та збережено' });
+    // Додаємо нову версію до масиву версій
+    fileRecord.versions.push(newVersion);
+    await fileRecord.save(); // Зберігаємо файл з новою версією
+
+    res.status(201).json({ success: true, message: 'Нова версія файлу успішно збережена' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Помилка при завантаженні файлу' });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Помилка при завантаженні резервної копії файлу' });
   }
 });
 
 // Завантаження файлу для відновлення (дефшифрування)
-app.get('/api/download/:fileId', authenticate, async (req, res) => {
+app.get('/api/download-version/:fileId/:versionId', authenticate, async (req, res) => {
+  const { fileId, versionId } = req.params;
+
   try {
-    const file = await File.findById(req.params.fileId);
+    const file = await File.findById(fileId);
     if (!file) return res.status(404).json({ success: false, message: 'Файл не знайдено' });
 
-    // Дешифруємо файл
-    const version = file.versions[0];
+    // Знаходимо конкретну версію файлу
+    const version = file.versions.id(versionId);
+    if (!version) return res.status(404).json({ success: false, message: 'Версія не знайдена' });
+
+    const secretKey = process.env.FILE_ENCRYPTION_KEY;
     const encryptedBuffer = Buffer.from(version.fileUrl, 'base64');
     const iv = Buffer.from(version.iv, 'base64');
-    const secretKey = process.env.FILE_ENCRYPTION_KEY;
 
+    // Дешифруємо файл
     const decryptedBuffer = decryptFile(encryptedBuffer, iv, secretKey);
 
     // Відправляємо файл
     res.status(200).send(decryptedBuffer);
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Помилка при завантаженні файлу' });
+    res.status(500).json({ success: false, message: 'Помилка при завантаженні версії файлу' });
   }
 });
 
